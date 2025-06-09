@@ -1,0 +1,12 @@
+name: cartoonify
+channels:
+  - conda-forge
+dependencies:
+  - opencv
+  - flask
+  - pip
+  - pip:
+      - stripe
+      - paypalrestsdk
+      - flask-dance
+      - pillow

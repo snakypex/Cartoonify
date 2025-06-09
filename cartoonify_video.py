@@ -3,6 +3,7 @@ import os
 import cv2
 import torch
 import numpy as np
+from contextlib import nullcontext
 from threading import Thread
 from queue import Queue
 
@@ -23,8 +24,13 @@ def get_model(variant="paprika"):
 
 def preprocess_batch(frames):
     # NumPy BGR→RGB, uint8→float16[-1,1], NHWC→NCHW
-    arr = np.stack(frames)[:,:,:,::-1].astype(np.float32) / 127.5 - 1
-    t = torch.from_numpy(arr).permute(0,3,1,2).to(device, non_blocking=True).half()
+    arr = np.stack(frames)[:, :, :, ::-1].astype(np.float32) / 127.5 - 1
+    t = (
+        torch.from_numpy(arr)
+        .permute(0, 3, 1, 2)
+        .to(device, non_blocking=True)
+        .half()
+    )
     return t
 
 def postprocess_batch(tensor):
@@ -70,8 +76,12 @@ def process_video(in_path, out_path, batch_size=8, progress_callback=None):
     q_write = Queue(maxsize=2)
 
     # Lancer les threads I/O
-    t_r = Thread(target=reader_thread, args=(cap, batch_size, q_read), daemon=True)
-    t_w = Thread(target=writer_thread, args=(out,    q_write), daemon=True)
+    t_r = Thread(
+        target=reader_thread,
+        args=(cap, batch_size, q_read),
+        daemon=True,
+    )
+    t_w = Thread(target=writer_thread, args=(out, q_write), daemon=True)
     t_r.start()
     t_w.start()
 
@@ -88,7 +98,7 @@ def process_video(in_path, out_path, batch_size=8, progress_callback=None):
         # Prétraitement asynchrone sur un stream secondaire
         if stream:
             torch.cuda.current_stream().wait_stream(stream)
-        with torch.cuda.stream(stream) if stream else dummy_ctx():
+        with torch.cuda.stream(stream) if stream else nullcontext():
             inp = preprocess_batch(batch)
             with torch.no_grad(), torch.cuda.amp.autocast():
                 out_t = model(inp)
@@ -110,10 +120,6 @@ def process_video(in_path, out_path, batch_size=8, progress_callback=None):
     cap.release()
     out.release()
 
-class dummy_ctx:
-    def __enter__(self): pass
-    def __exit__(self,*a): pass
-
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
         description="CartoonGAN accéléré (batch + fp16 + JIT + pipeline)"
@@ -127,7 +133,11 @@ if __name__ == "__main__":
     def show_prog(ratio):
         print(f"Progression : {int(ratio*100)} %", end="\r", flush=True)
 
-    process_video(args.input, args.output,
-                  batch_size=args.batch_size,
-                  progress_callback=show_prog)
+    process_video(
+        args.input,
+        args.output,
+        batch_size=args.batch_size,
+        progress_callback=show_prog,
+    )
     print("\nTerminé.")
+

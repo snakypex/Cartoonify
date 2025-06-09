@@ -108,10 +108,22 @@ if __name__ == "__main__":
     )
     parser.add_argument("input", help="Chemin vers la vidéo d'entrée")
     parser.add_argument("output", help="Chemin vers la vidéo de sortie")
-    parser.add_argument("--style", default="candy",
-                        help="Nom du style (e.g. candy, mosaic, rain_princess, udnie)")
-    parser.add_argument("--batch-size", "-b", type=int, default=4,
-                        help="Taille du batch pour le GPU")
+    parser.add_argument(
+        "--style",
+        default="candy",
+        help="Nom du style (e.g. candy, mosaic, rain_princess, udnie)",
+    )
+    parser.add_argument(
+        "--batch-size", "-b", type=int, default=4,
+        help="Taille du batch pour le GPU",
+    )
     args = parser.parse_args()
 
-    process_video(args.input, args.output, style=args.style, batch_size=args.batch_size)
+    process_video(
+        args.input,
+        args.output,
+        style=args.style,
+        batch_size=args.batch_size,
+    )
+
+

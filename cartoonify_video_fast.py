@@ -15,13 +15,21 @@ _MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 _STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
 
 def get_model(style="candy", repo="pytorch/examples"):
-    """
-    Charge le modèle Fast Neural Style (Torch Hub) pour un style donné.
-    """
+    """Charge le modèle Fast Neural Style (Torch Hub) pour un style donné."""
     global _model
     if _model is None:
         repo = "pytorch/examples"  # on enlève ":main", torch.hub prendra la branche par défaut (main)
-        _model = torch.hub.load(repo, "fast_neural_style", style, pretrained=True)
+        # Récupération de l'architecture uniquement
+        model = torch.hub.load(repo, "fast_neural_style", style, pretrained=False)
+        # Téléchargement manuel des poids
+        url = f"https://download.pytorch.org/models/fast_neural_style/{style}.pth"
+        state_dict = torch.hub.load_state_dict_from_url(url, map_location="cpu")
+        # Suppression des clés obsolètes InstanceNorm
+        for k in list(state_dict.keys()):
+            if k.endswith("running_mean") or k.endswith("running_var"):
+                state_dict.pop(k)
+        model.load_state_dict(state_dict, strict=False)
+        _model = model.to(DEVICE).eval().half()
     return _model
 
 
